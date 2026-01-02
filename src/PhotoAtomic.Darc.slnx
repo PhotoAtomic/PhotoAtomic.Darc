@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/Darc/" />
+  <Folder Name="/Darc/Src/">
+    <Project Path="D:/PhotoAtomic.Darc/src/PhotoAtomic.Darc/PhotoAtomic.Darc.csproj" />
+  </Folder>
+  <Folder Name="/Darc/Tst/">
+    <Project Path="D:/PhotoAtomic.Darc/src/PhotoAtomic.Darc.Test/PhotoAtomic.Darc.Test.csproj" Id="488bd637-1374-47b7-804f-0c947478398e" />
+  </Folder>
+  <Folder Name="/Example/">
+    <Project Path="D:/PhotoAtomic.Darc/src/Example.Clients/Example.Clients.csproj" Id="24aedd6b-87e9-4c9d-af2d-2abdec208876" />
+    <Project Path="D:/PhotoAtomic.Darc/src/Example.Grains.Interfaces/Example.Grains.Interfaces.csproj" Id="4ed1e51c-f2e4-4152-b32a-a113efb14b4b" />
+    <Project Path="D:/PhotoAtomic.Darc/src/Example.Grains/Example.Grains.csproj" Id="4beb69ce-b7f9-42ff-81e9-b931edf30dbc" />
+    <Project Path="D:/PhotoAtomic.Darc/src/Example.Silos/Example.Silos.csproj" Id="ac78fcab-3508-4c53-8eab-092b8c2884a5" />
+  </Folder>
+</Solution>
