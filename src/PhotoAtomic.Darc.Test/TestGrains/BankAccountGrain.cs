@@ -67,8 +67,8 @@ public class BankAccountGrain : EventSourcedGrain<BankAccountState>, IBankAccoun
 
     public async Task Deposit(decimal amount)
     {
-        if (amount <= 0)
-            throw new ArgumentException("Deposit amount must be positive", nameof(amount));
+        if (amount < 0)
+            throw new ArgumentException("Deposit amount must be positive or zero", nameof(amount));
 
         // ? Simplified: Just append the event!
         await Append(new MoneyDepositedEvent(amount));
