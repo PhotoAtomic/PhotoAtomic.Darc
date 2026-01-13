@@ -1,15 +1,18 @@
+using Orleans;
+
 namespace PhotoAtomic.Darc.TransactionalState;
 
 /// <summary>
 /// Base class for event-sourced state that tracks pending events
 /// Provides default implementations for event sourcing pattern
-/// Do NOT add [GenerateSerializer] here - concrete state classes in grain projects will have it
 /// </summary>
+[GenerateSerializer]
 public abstract class EventSourcedStateBase
 {
     /// <summary>
     /// Pending events (not yet committed to event store)
     /// </summary>
+    [Id(0)]
     public List<Event> PendingEventsList { get; set; } = new();
 
     /// <summary>

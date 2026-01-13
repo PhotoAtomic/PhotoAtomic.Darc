@@ -1,5 +1,6 @@
 using Orleans;
 using Orleans.Transactions.Abstractions;
+using PhotoAtomic.Darc.TransactionalState;
 
 namespace PhotoAtomic.Darc.Test.TestGrains;
 

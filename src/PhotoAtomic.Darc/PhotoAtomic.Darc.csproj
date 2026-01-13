@@ -4,9 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Enable Orleans source generators -->
+    <GenerateOrleansCode>true</GenerateOrleansCode>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Sdk" Version="9.2.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Orleans.Transactions" Version="9.0.0" />
     <PackageReference Include="KurrentDB.Client" Version="1.3.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
