@@ -1,6 +1,7 @@
 using KurrentDB.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.TestingHost;
+using Orleans.Transactions;
 using PhotoAtomic.Darc.Extensions;
 using PhotoAtomic.Darc.Test.TestGrains;
 using Testcontainers.KurrentDb;
@@ -150,7 +151,7 @@ public class EventStoreTransactionalStateStorageTest
         await account.Deposit(50m);
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        await Assert.ThrowsAsync<OrleansTransactionAbortedException>(async () =>
             await account.Withdraw(100m));
 
         // Balance should remain unchanged after failed transaction
@@ -200,7 +201,7 @@ public class EventStoreTransactionalStateStorageTest
         await toAccount.Deposit(100m);
 
         // Act & Assert - Try to transfer more than available
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        await Assert.ThrowsAsync<OrleansTransactionAbortedException>(async () =>
             await coordinator.Transfer(fromAccountId, toAccountId, 100m));
 
         // Both accounts should maintain original balances
@@ -256,9 +257,11 @@ public class EventStoreTransactionalStateStorageTest
         await account.Withdraw(30m);
         await account.Deposit(50m);
 
+        decimal total = await account.GetBalance();
+
         // Verify stream using direct KurrentDB client
         var client = new KurrentDBClient(KurrentDBClientSettings.Create(fixture.ConnectionString!));
-        var streamName = $"Orleans.Transactions.ITransactionalState-{accountId}-account";
+        var streamName = $"bankaccount-{accountId}-account";
         
         var events = new List<ResolvedEvent>();
         var readStream = client.ReadStreamAsync(

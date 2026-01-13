@@ -149,7 +149,7 @@ public class EventStoreTransactionalStateStorage<TState> : ITransactionalStateSt
                     pending.TransactionId, events.Count);
             }
 
-            return currentETag;
+            // Don't return here - continue to COMMIT phase if commitUpTo is specified
         }
 
         // PHASE 2: COMMIT - Copy from pending to main stream, then delete pending
