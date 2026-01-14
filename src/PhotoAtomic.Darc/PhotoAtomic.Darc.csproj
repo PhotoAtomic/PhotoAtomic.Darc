@@ -15,4 +15,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- DeepCloner: used both as source generator (analyzer) and for runtime types -->
+    <ProjectReference Include="..\PhotoAtomic.DeepCloner\PhotoAtomic.DeepCloner.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+  </ItemGroup>
+
 </Project>

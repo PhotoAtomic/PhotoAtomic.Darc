@@ -1,6 +1,7 @@
 using Orleans;
 using Orleans.Transactions.Abstractions;
 using PhotoAtomic.Darc.TransactionalState;
+using PhotoAtomic.DeepCloner;
 
 namespace PhotoAtomic.Darc.Test.TestGrains;
 
@@ -8,18 +9,19 @@ namespace PhotoAtomic.Darc.Test.TestGrains;
 /// Bank account state for testing - Event Sourced
 /// State is derived from events, not modified directly
 /// </summary>
+[DeepCopyable]
 [GenerateSerializer]
 public class BankAccountState : EventSourcedStateBase
 {
     // Derived state (computed from events)
     [Id(1)]
-    public decimal Balance { get; private set; }
+    public decimal Balance { get; set; }
     
     [Id(2)]
-    public int TransactionCount { get; private set; }
+    public int TransactionCount { get; set; }
     
     [Id(3)]
-    public DateTime LastUpdate { get; private set; }
+    public DateTime LastUpdate { get; set; }
 
     /// <summary>
     /// Apply an event to update the state (overrides EventSourcedStateBase)

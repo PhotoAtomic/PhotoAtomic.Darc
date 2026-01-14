@@ -2,6 +2,7 @@
   <Folder Name="/Darc/" />
   <Folder Name="/Darc/Src/">
     <Project Path="D:/PhotoAtomic.Darc/src/PhotoAtomic.Darc/PhotoAtomic.Darc.csproj" />
+    <Project Path="PhotoAtomic.DeepCloner/PhotoAtomic.DeepCloner.csproj" />
   </Folder>
   <Folder Name="/Darc/Tst/">
     <Project Path="D:/PhotoAtomic.Darc/src/PhotoAtomic.Darc.Test/PhotoAtomic.Darc.Test.csproj" Id="488bd637-1374-47b7-804f-0c947478398e" />

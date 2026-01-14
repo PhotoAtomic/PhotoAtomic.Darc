@@ -1,4 +1,5 @@
 using Orleans;
+using PhotoAtomic.DeepCloner;
 
 namespace PhotoAtomic.Darc.TransactionalState;
 
@@ -11,8 +12,10 @@ public abstract class EventSourcedStateBase
 {
     /// <summary>
     /// Pending events (not yet committed to event store)
+    /// Excluded from cloning - always starts empty in clones
     /// </summary>
     [Id(0)]
+    [SkipClone]
     public List<Event> PendingEventsList { get; set; } = new();
 
     /// <summary>
