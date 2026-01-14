@@ -8,28 +8,28 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace PhotoAtomic.DeepCloner.Generation;
+namespace PhotoAtomic.Clooney.Generation;
 
 /// <summary>
 /// Incremental source generator that creates Clone() extension methods
-/// for classes marked with [DeepCopyable] attribute and all reachable types.
+/// for classes marked with [Clonable] attribute and all reachable types.
 /// </summary>
 [Generator]
-public class DeepCopyableGenerator : IIncrementalGenerator
+public class ClonableGenerator : IIncrementalGenerator
 {
     private static readonly DiagnosticDescriptor ObjectWithoutKnownType = new(
-        id: "PADEEP001",
+        id: "PACLOON001",
         title: "Uncloneable object/dynamic property",
-        messageFormat: "DeepCopyable class '{0}' has property '{1}' of type '{2}' without [KnownType]; cannot generate reliable clone.",
-        category: "PhotoAtomic.DeepCloner",
+        messageFormat: "Clonable class '{0}' has property '{1}' of type '{2}' without [KnownType]; cannot generate reliable clone.",
+        category: "PhotoAtomic.Clooney",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor UnassignablePropertyWarning = new(
-        id: "PADEEP002",
+        id: "PACLOON002",
         title: "Property will not be cloned",
-        messageFormat: "DeepCopyable class '{0}' has property '{1}' without a public or helper setter; it will not be cloned. Make the class partial to enable helper-based cloning.",
-        category: "PhotoAtomic.DeepCloner",
+        messageFormat: "Clonable class '{0}' has property '{1}' without a public or helper setter; it will not be cloned. Make the class partial to enable helper-based cloning.",
+        category: "PhotoAtomic.Clooney",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
@@ -37,7 +37,7 @@ public class DeepCopyableGenerator : IIncrementalGenerator
     {
         var roots = context.SyntaxProvider
             .ForAttributeWithMetadataName(
-                "PhotoAtomic.DeepCloner.DeepCopyableAttribute",
+                "PhotoAtomic.Clooney.ClonableAttribute",
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
                 transform: static (ctx, ct) => GetClassInfo(ctx, ct))
             .Where(static x => x is not null);
@@ -194,7 +194,7 @@ public class DeepCopyableGenerator : IIncrementalGenerator
     private static HashSet<string> GetExcludes(INamedTypeSymbol symbol)
     {
         var excludeArgument = symbol.GetAttributes()
-            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "PhotoAtomic.DeepCloner.DeepCopyableAttribute")
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "PhotoAtomic.Clooney.ClonableAttribute")
             ?.NamedArguments.FirstOrDefault(x => x.Key == "Exclude").Value.Value as string;
 
         return BuildExcludedProperties(excludeArgument);
@@ -381,7 +381,7 @@ public class DeepCopyableGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
         sb.AppendLine("            if (source == null) return null;");
         sb.AppendLine();
-        sb.AppendLine("            return source.Clone(new PhotoAtomic.DeepCloner.CloneContext());");
+        sb.AppendLine("            return source.Clone(new PhotoAtomic.Clooney.CloneContext());");
         sb.AppendLine("        }");
     }
 
@@ -392,7 +392,7 @@ public class DeepCopyableGenerator : IIncrementalGenerator
         sb.AppendLine("        /// </summary>");
         sb.AppendLine($"        public static {classInfo.FullyQualifiedName}? Clone(");
         sb.AppendLine($"            this {classInfo.FullyQualifiedName}? source,");
-        sb.AppendLine("            PhotoAtomic.DeepCloner.CloneContext context)");
+        sb.AppendLine("            PhotoAtomic.Clooney.CloneContext context)");
         sb.AppendLine("        {");
         var derivedReachable = GetDerivedReachable(classInfo, reachable).ToList();
 
@@ -504,7 +504,7 @@ public class DeepCopyableGenerator : IIncrementalGenerator
         {
             if (prop.KnownTypes.Count == 0)
             {
-                return $"ThrowUncloneable<{prop.Type}>(\"DeepCopyable '{owner.FullyQualifiedName}' property '{prop.Name}' of type '{prop.Type}' must declare [KnownType] to be cloned.\")";
+                return $"ThrowUncloneable<{prop.Type}>(\"Clonable '{owner.FullyQualifiedName}' property '{prop.Name}' of type '{prop.Type}' must declare [KnownType] to be cloned.\")";
             }
 
             var cases = new List<string>();
@@ -529,7 +529,7 @@ public class DeepCopyableGenerator : IIncrementalGenerator
                 ? "x?.Clone(ctx)"
                 : elementHasClone
                     ? "x?.Clone()"
-                    : "ThrowUncloneable<" + elementType + ">(\"DeepCopyable '" + owner.FullyQualifiedName + "' property '" + prop.Name + "' collection element type '" + (prop.CollectionElementType ?? "unknown") + "' cannot be cloned.\")";
+                    : "ThrowUncloneable<" + elementType + ">(\"Clonable '" + owner.FullyQualifiedName + "' property '" + prop.Name + "' collection element type '" + (prop.CollectionElementType ?? "unknown") + "' cannot be cloned.\")";
 
             return $"{sourceAccess}?.Select(x => {selector}).ToList()";
         }
@@ -546,7 +546,7 @@ public class DeepCopyableGenerator : IIncrementalGenerator
             return $"{sourceAccess}?.Clone()";
         }
 
-        return $"ThrowUncloneable<{prop.Type}>(\"DeepCopyable '{owner.FullyQualifiedName}' property '{prop.Name}' of type '{prop.Type}' cannot be cloned (no generated or existing Clone).\")";
+        return $"ThrowUncloneable<{prop.Type}>(\"Clonable '{owner.FullyQualifiedName}' property '{prop.Name}' of type '{prop.Type}' cannot be cloned (no generated or existing Clone).\")";
     }
 
     private static string GenerateKnownTypeClone(string identifier, ITypeSymbol typeSymbol, Dictionary<INamedTypeSymbol, ClassInfo> reachable)

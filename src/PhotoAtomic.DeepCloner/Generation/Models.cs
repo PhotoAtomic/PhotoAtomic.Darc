@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 
-namespace PhotoAtomic.DeepCloner.Generation;
+namespace PhotoAtomic.Clooney.Generation;
 
 /// <summary>
 /// Metadata about a class being cloned

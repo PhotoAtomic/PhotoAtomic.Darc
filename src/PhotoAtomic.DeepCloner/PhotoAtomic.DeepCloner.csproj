@@ -5,6 +5,8 @@
     <LangVersion>latest</LangVersion>
     <EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>
     <Nullable>enable</Nullable>
+    <RootNamespace>PhotoAtomic.Clooney</RootNamespace>
+    <AssemblyName>PhotoAtomic.Clooney</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

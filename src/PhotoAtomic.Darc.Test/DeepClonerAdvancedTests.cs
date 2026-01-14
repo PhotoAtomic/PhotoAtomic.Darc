@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using PhotoAtomic.DeepCloner;
+using PhotoAtomic.Clooney;
 using Xunit;
 
 namespace PhotoAtomic.Darc.Test;
@@ -59,7 +59,7 @@ public class DeepClonerAdvancedTests
     }
 }
 
-[DeepCopyable]
+[Clonable]
 public partial class PrivateSetterSample
 {
     public string Name { get; private set; }
@@ -77,7 +77,7 @@ public partial class PrivateSetterSample
     }
 }
 
-[DeepCopyable]
+[Clonable]
 public class UnsettableSample
 {
     public string Name { get; }
@@ -92,18 +92,18 @@ public class UnsettableSample
     }
 }
 
-[DeepCopyable]
+[Clonable]
 public abstract class Animal
 {
 }
 
-[DeepCopyable]
+[Clonable]
 public class Cat : Animal
 {
     public int Lives { get; set; }
 }
 
-[DeepCopyable]
+[Clonable]
 public class AnimalHolder
 {
     public Animal? Animal { get; set; }
@@ -114,7 +114,7 @@ public class BadElement
     public int Value { get; set; }
 }
 
-[DeepCopyable]
+[Clonable]
 public class UncloneableCollection
 {
     public List<object> Items { get; set; } = new();

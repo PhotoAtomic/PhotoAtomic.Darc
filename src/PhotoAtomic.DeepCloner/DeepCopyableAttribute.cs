@@ -1,6 +1,6 @@
 using System;
 
-namespace PhotoAtomic.DeepCloner;
+namespace PhotoAtomic.Clooney;
 
 /// <summary>
 /// Marks a class for automatic deep copy extension method generation.
@@ -9,7 +9,7 @@ namespace PhotoAtomic.DeepCloner;
 /// </summary>
 /// <example>
 /// <code>
-/// [DeepCopyable]
+/// [Clonable]
 /// public class MyState
 /// {
 ///     public int Value { get; set; }
@@ -25,13 +25,13 @@ namespace PhotoAtomic.DeepCloner;
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class DeepCopyableAttribute : Attribute
+public sealed class ClonableAttribute : Attribute
 {
     /// <summary>
     /// Comma-separated list of property names to exclude from cloning.
     /// </summary>
     /// <example>
-    /// [DeepCopyable(Exclude = "PendingEventsList,CachedData")]
+/// [Clonable(Exclude = "PendingEventsList,CachedData")]
     /// </example>
     public string? Exclude { get; set; }
     

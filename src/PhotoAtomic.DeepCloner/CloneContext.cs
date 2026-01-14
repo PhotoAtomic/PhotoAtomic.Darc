@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PhotoAtomic.DeepCloner;
+namespace PhotoAtomic.Clooney;
 
 /// <summary>
 /// Tracks cloned objects during deep cloning to preserve reference identity
