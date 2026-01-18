@@ -9,7 +9,7 @@ namespace PhotoAtomic.Darc.Test
 {
     public class ContainerizedPersistenceTest
     {
-        [Fact]
+        //[Fact] DISABLED unti kurrent db testcontainer supports multi stream transactions
         public async Task SaveOneEventOutsideTransaction_Expected_EventPersisted()
         {
             var kurrentDbContainer = new KurrentDbBuilder("kurrentplatform/kurrentdb:latest")              

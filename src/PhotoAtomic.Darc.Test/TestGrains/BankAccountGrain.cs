@@ -92,6 +92,7 @@ public class BankAccountGrain : EventSourcedGrain<BankAccountState>, IBankAccoun
 
             // Append event after validation
             state.Append(new MoneyWithdrawnEvent(amount));
+            if (amount == 40) throw new Exception("This Bank doen't move 40 money! and we are slow and check after the fact");
         });
     }
 

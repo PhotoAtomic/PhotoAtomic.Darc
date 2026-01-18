@@ -150,9 +150,9 @@ public class EventStoreTransactionalStateStorageTest
         var account = fixture.Cluster!.GrainFactory.GetGrain<IBankAccountGrain>(accountId);
         await account.Deposit(50m);
 
-        // Act & Assert
+        // Act & Assert        
         await Assert.ThrowsAsync<OrleansTransactionAbortedException>(async () =>
-            await account.Withdraw(100m));
+            await account.Withdraw(40));
 
         // Balance should remain unchanged after failed transaction
         var balance = await account.GetBalance();
