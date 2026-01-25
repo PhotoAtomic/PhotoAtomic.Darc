@@ -45,7 +45,7 @@ public class DiffableGenerator : IIncrementalGenerator
                 return;
             }
 
-            var reachable = BuildReachableTypes(rootInfos);
+            var reachable = BuildReachableTypes(rootInfos, compilation);
 
             ReportDiagnostics(spc, reachable);
 
@@ -89,7 +89,7 @@ public class DiffableGenerator : IIncrementalGenerator
         }
     }
 
-    private static Dictionary<INamedTypeSymbol, ClassInfo> BuildReachableTypes(IEnumerable<ClassInfo> roots)
+    private static Dictionary<INamedTypeSymbol, ClassInfo> BuildReachableTypes(IEnumerable<ClassInfo> roots, Compilation compilation)
     {
         var reachable = new Dictionary<INamedTypeSymbol, ClassInfo>(SymbolEqualityComparer.Default);
         var queue = new Queue<(INamedTypeSymbol symbol, HashSet<string> excludes)>();
@@ -110,6 +110,19 @@ public class DiffableGenerator : IIncrementalGenerator
             var classInfo = BuildClassInfo(symbol, excludes);
             reachable[symbol] = classInfo;
 
+            // If this is an abstract class or interface, find all derived types in the compilation
+            if (symbol.IsAbstract || symbol.TypeKind == TypeKind.Interface)
+            {
+                var derivedTypes = FindDerivedTypes(symbol, compilation);
+                foreach (var derivedType in derivedTypes)
+                {
+                    if (ShouldEnqueue(derivedType))
+                    {
+                        queue.Enqueue((derivedType, GetExcludes(derivedType)));
+                    }
+                }
+            }
+
             foreach (var prop in classInfo.Properties)
             {
                 var candidate = GetCandidateType(prop);
@@ -129,6 +142,79 @@ public class DiffableGenerator : IIncrementalGenerator
         }
 
         return reachable;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> FindDerivedTypes(INamedTypeSymbol baseType, Compilation compilation)
+    {
+        var derivedTypes = new List<INamedTypeSymbol>();
+
+        // Visit all named types in all assemblies (including source)
+        var visitor = new DerivedTypeVisitor(baseType, derivedTypes);
+        
+        // Visit the main compilation
+        compilation.GlobalNamespace.Accept(visitor);
+
+        // Visit referenced assemblies
+        foreach (var reference in compilation.References)
+        {
+            if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol assemblySymbol)
+            {
+                assemblySymbol.GlobalNamespace.Accept(visitor);
+            }
+        }
+
+        return derivedTypes;
+    }
+
+    private class DerivedTypeVisitor : SymbolVisitor
+    {
+        private readonly INamedTypeSymbol _baseType;
+        private readonly List<INamedTypeSymbol> _derivedTypes;
+
+        public DerivedTypeVisitor(INamedTypeSymbol baseType, List<INamedTypeSymbol> derivedTypes)
+        {
+            _baseType = baseType;
+            _derivedTypes = derivedTypes;
+        }
+
+        public override void VisitNamespace(INamespaceSymbol symbol)
+        {
+            foreach (var member in symbol.GetMembers())
+            {
+                member.Accept(this);
+            }
+        }
+
+        public override void VisitNamedType(INamedTypeSymbol symbol)
+        {
+            // Check if this type derives from or implements the base type
+            if (symbol.TypeKind == TypeKind.Class || symbol.TypeKind == TypeKind.Struct)
+            {
+                // Check base class
+                var current = symbol.BaseType;
+                while (current != null)
+                {
+                    if (SymbolEqualityComparer.Default.Equals(current, _baseType))
+                    {
+                        _derivedTypes.Add(symbol);
+                        break;
+                    }
+                    current = current.BaseType;
+                }
+            }
+
+            // Check interfaces (for both classes and structs)
+            if (symbol.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, _baseType)))
+            {
+                _derivedTypes.Add(symbol);
+            }
+
+            // Visit nested types
+            foreach (var member in symbol.GetTypeMembers())
+            {
+                member.Accept(this);
+            }
+        }
     }
 
     private static ITypeSymbol? GetCandidateType(PropertyInfo prop)

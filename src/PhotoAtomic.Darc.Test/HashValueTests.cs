@@ -511,6 +511,7 @@ public class HashValueTests
 
 #region Test Model Classes
 
+// Root types - these are used as entry points in tests
 [Hashable]
 [Diffable]
 public class PersonState
@@ -553,6 +554,8 @@ public class NumberList
     public List<int>? Numbers { get; set; }
 }
 
+// Polymorphic hierarchy - only mark the root container and abstract base
+// Derived types are discovered automatically by the generator!
 [Hashable]
 [Diffable]
 public abstract class Vehicle
@@ -560,22 +563,17 @@ public abstract class Vehicle
     public string? Brand { get; set; }
 }
 
-[Hashable]
-[Diffable]
+// NO attributes needed - discovered automatically from Vehicle!
 public class Car : Vehicle
 {
     public int Doors { get; set; }
 }
 
-[Hashable]
-[Diffable]
 public class Motorcycle : Vehicle
 {
     public bool HasSidecar { get; set; }
 }
 
-[Hashable]
-[Diffable]
 public class SportsCar : Car
 {
     public int TopSpeed { get; set; }
