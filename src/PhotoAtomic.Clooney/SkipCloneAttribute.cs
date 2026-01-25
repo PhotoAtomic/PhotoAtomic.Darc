@@ -8,7 +8,7 @@ namespace PhotoAtomic.Clooney;
 /// </summary>
 /// <example>
 /// <code>
-/// [DeepCopyable]
+/// [Clonable]
 /// public class MyState
 /// {
 ///     public int Value { get; set; }
