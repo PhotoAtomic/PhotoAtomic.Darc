@@ -512,6 +512,7 @@ public class HashValueTests
 #region Test Model Classes
 
 [Hashable]
+[Diffable]
 public class PersonState
 {
     public string? Name { get; set; }
@@ -520,6 +521,7 @@ public class PersonState
 }
 
 [Hashable]
+[Diffable]
 public class FamilyTree
 {
     public string? Name { get; set; }
@@ -528,6 +530,7 @@ public class FamilyTree
 }
 
 [Hashable]
+[Diffable]
 public class LinkedNode
 {
     public int Value { get; set; }
@@ -535,6 +538,7 @@ public class LinkedNode
 }
 
 [Hashable]
+[Diffable]
 public class TreeNode
 {
     public int Value { get; set; }
@@ -542,6 +546,7 @@ public class TreeNode
 }
 
 [Hashable]
+[Diffable]
 public class NumberList
 {
     public string? Name { get; set; }
@@ -549,42 +554,50 @@ public class NumberList
 }
 
 [Hashable]
+[Diffable]
 public abstract class Vehicle
 {
     public string? Brand { get; set; }
 }
 
 [Hashable]
+[Diffable]
 public class Car : Vehicle
 {
     public int Doors { get; set; }
 }
 
 [Hashable]
+[Diffable]
 public class Motorcycle : Vehicle
 {
     public bool HasSidecar { get; set; }
 }
 
 [Hashable]
+[Diffable]
 public class SportsCar : Car
 {
     public int TopSpeed { get; set; }
 }
 
 [Hashable]
+[Diffable]
 public class VehicleContainer
 {
     public Vehicle? Vehicle { get; set; }
 }
 
 [Hashable]
+[Diffable]
 public class CachedData
 {
     public int ImportantValue { get; set; }
 
     [SkipHash]
+    [SkipDiff]
     public DateTime CacheTimestamp { get; set; }
 }
 
 #endregion
+
