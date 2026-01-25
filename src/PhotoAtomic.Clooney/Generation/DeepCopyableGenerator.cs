@@ -387,9 +387,6 @@ public class ClonableGenerator : IIncrementalGenerator
 
         if (classInfo.IsInterface || classInfo.IsAbstract)
         {
-            var derivedCases = string.Join("\n", derivedReachable.Select(derived =>
-                $"{derived.FullyQualifiedName} typed => typed.Clone(context),"));
-
             return Indent($$"""
                 /// <summary>
                 /// Creates a deep clone with reference tracking (supports circular references).
@@ -401,26 +398,16 @@ public class ClonableGenerator : IIncrementalGenerator
                     return source switch
                     {
                         null => null,
-                        {{derivedCases}}
+                        {{Indent(derivedReachable.Select(derived =>
+                            $"{derived.FullyQualifiedName} typed => typed.Clone(context),"))}}
                         _ => source
                     };
                 }
                 """);
         }
 
-        var derivedChecks = derivedReachable.Any()
-            ? string.Join("\n", derivedReachable.Select(derived =>
-                $"if (source is {derived.FullyQualifiedName} typed) return typed.Clone(context);"))
-            : null;
-
         var helperProps = classInfo.Properties.Where(p => p.NeedsHelperSetter).ToList();
         var directProps = classInfo.Properties.Where(p => p.HasPublicSetter && !p.NeedsHelperSetter).ToList();
-
-        var propertyAssignments = string.Join("\n", directProps.Select(prop =>
-        {
-            var cloneExpr = GenerateCloneExpression(classInfo, prop, reachable);
-            return $"clone.{prop.Name} = {cloneExpr};";
-        }));
 
         var helperSetterCall = helperProps.Any()
             ? Indent($$"""
@@ -438,14 +425,19 @@ public class ClonableGenerator : IIncrementalGenerator
                 PhotoAtomic.Clooney.CloneContext context)
             {
                 if (source == null) return null;
-                {{derivedChecks}}
+                {{Indent(derivedReachable.Select(derived =>
+                    $"if (source is {derived.FullyQualifiedName} typed) return typed.Clone(context);"))}}
             
                 return context.GetOrClone(
                     source,
                     shellFactory: () => new {{classInfo.FullyQualifiedName}}(),
                     populateAction: (clone, ctx) =>
                     {
-                        {{propertyAssignments}}{{helperSetterCall}}
+                        {{Indent(directProps.Select(prop =>
+                        {
+                            var cloneExpr = GenerateCloneExpression(classInfo, prop, reachable);
+                            return $"clone.{prop.Name} = {cloneExpr};";
+                        }))}}{{helperSetterCall}}
                     });
             }
             """);
@@ -572,14 +564,9 @@ public class ClonableGenerator : IIncrementalGenerator
         var helperProps = classInfo.Properties.Where(p => p.NeedsHelperSetter).ToList();
         if (!helperProps.Any()) return null;
 
-        var parameters = string.Join(",\n", helperProps.Select((prop, i) =>
+        // NOTE: Parameters need commas between them, so we use string.Join here
+        var parameters = string.Join(",\n", helperProps.Select(prop =>
             $"{prop.Type} {prop.Name.ToLowerInvariant()}"));
-
-        var assignments = string.Join("\n", helperProps.Select(prop =>
-        {
-            var argName = prop.Name.ToLowerInvariant();
-            return $"this.{prop.Name} = {argName};";
-        }));
 
         return Indent($$"""
             
@@ -589,7 +576,11 @@ public class ClonableGenerator : IIncrementalGenerator
                     {{parameters}}
                 )
                 {
-                    {{assignments}}
+                    {{Indent(helperProps.Select(prop =>
+                    {
+                        var argName = prop.Name.ToLowerInvariant();
+                        return $"this.{prop.Name} = {argName};";
+                    }))}}
                 }
             }
             """);
