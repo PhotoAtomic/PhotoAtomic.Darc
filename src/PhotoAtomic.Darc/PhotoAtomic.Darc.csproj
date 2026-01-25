@@ -16,8 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- DeepCloner: used both as source generator (analyzer) and for runtime types -->
-    <ProjectReference Include="..\PhotoAtomic.DeepCloner\PhotoAtomic.DeepCloner.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" />
   </ItemGroup>
 
 </Project>

@@ -30,9 +30,10 @@
     <ProjectReference Include="..\Example.Grains\Example.Grains.csproj" />
     <ProjectReference Include="..\Example.Silos\Example.Silos.csproj" />
     <ProjectReference Include="..\PhotoAtomic.Darc\PhotoAtomic.Darc.csproj" />
-    <!-- DeepCloner: referenced twice - once as analyzer (for source generation) and once as assembly (for runtime types like DeepCopyableAttribute) -->
-    <ProjectReference Include="..\PhotoAtomic.DeepCloner\PhotoAtomic.DeepCloner.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\PhotoAtomic.DeepCloner\PhotoAtomic.DeepCloner.csproj" />
+    <!-- Clooney: referenced twice - once as analyzer (for source generation) and once as assembly (for runtime types like ClonableAttribute) -->
+    <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" />
+    <ProjectReference Include="..\PhotoAtomic.IndentedStrings\PhotoAtomic.IndentedStrings.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
   </ItemGroup>
 
   <ItemGroup>

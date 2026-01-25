@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 namespace PhotoAtomic.IndentedStrings;
 
 [InterpolatedStringHandler]
-internal class IndentedInterpolatedStringHandler
+public class IndentedInterpolatedStringHandler
 {
     public static IndentedInterpolatedStringHandler Indent(IndentedInterpolatedStringHandler handler) => handler;
     public static IndentedInterpolatedStringHandler Indent(IEnumerable<string?> parts)
