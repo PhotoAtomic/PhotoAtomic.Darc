@@ -18,6 +18,7 @@ internal sealed class ClassInfo
     public bool IsInterface { get; init; }
     public bool IsAbstract { get; init; }
     public bool IsPartial { get; init; }
+    public bool IsRoot { get; init; }
 }
 
 /// <summary>
