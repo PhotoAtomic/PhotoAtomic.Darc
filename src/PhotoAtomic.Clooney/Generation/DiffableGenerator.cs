@@ -1149,7 +1149,6 @@ public class DiffableGenerator : IIncrementalGenerator
                 if (switchCases.Length > 0)
                     switchCases.AppendLine();
                     
-                // Cast both this and other to the derived type, but check other's type first
                 switchCases.Append($"                {derived.FullyQualifiedName} when other is {derived.FullyQualifiedName} od => {derived.ClassName}DiffExtensions.Diff(({derived.FullyQualifiedName})this, od),");
             }
             

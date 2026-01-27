@@ -418,7 +418,11 @@ public class ClonableGenerator : IIncrementalGenerator
                     {
                         null => null,
                         {{Indent(derivedReachable.Select(derived =>
-                            $"{derived.FullyQualifiedName} d => {derived.ClassName}Extensions.Clone(d, context),"))}}
+                            $"""
+                            {derived.FullyQualifiedName} d => {derived.ClassName}Extensions.Clone(d, context),
+                            
+                            """))}}
+
                         _ => source
                     };
                 }
@@ -441,7 +445,10 @@ public class ClonableGenerator : IIncrementalGenerator
                         return source switch
                         {
                             {{Indent(derivedReachable.Select(derived =>
-                                $"{derived.FullyQualifiedName} d => {derived.ClassName}Extensions.Clone(d, context),"))}}
+                                $"""
+                                {derived.FullyQualifiedName} d => {derived.ClassName}Extensions.Clone(d, context),
+                                
+                                """))}}
                             _ => CloneInternal(source, context)
                         };
                     }
@@ -641,7 +648,10 @@ public class ClonableGenerator : IIncrementalGenerator
                 if (switchCases.Length > 0)
                     switchCases.AppendLine();
                     
-                switchCases.Append($"                {derived.FullyQualifiedName} => {derived.ClassName}Extensions.Clone(({derived.FullyQualifiedName})this),");
+                switchCases.Append($"""
+                    {derived.FullyQualifiedName} => {derived.ClassName}Extensions.Clone(({derived.FullyQualifiedName})this),
+
+                    """);
             }
             
             cloneBody = $$"""
@@ -655,7 +665,7 @@ public class ClonableGenerator : IIncrementalGenerator
         else
         {
             // Simple case: no derived types
-            cloneBody = $"            return {classInfo.ClassName}Extensions.Clone(this);";
+            cloneBody = $"return {classInfo.ClassName}Extensions.Clone(this);";
         }
 
         return Indent($$"""
@@ -664,7 +674,7 @@ public class ClonableGenerator : IIncrementalGenerator
             {
                 public {{classInfo.FullyQualifiedName}}? Clone()
                 {
-            {{cloneBody}}
+                    {{cloneBody}}
                 }
             }
             """);

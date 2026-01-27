@@ -500,7 +500,10 @@ public class HashableGenerator : IIncrementalGenerator
                     {
                         null => 0,
                         {{Indent(derivedReachable.Select(derived =>
-                            $"{derived.FullyQualifiedName} d => {derived.ClassName}HashExtensions.HashValue(d, context),"))}}
+                            $"""
+                            {derived.FullyQualifiedName} d => {derived.ClassName}HashExtensions.HashValue(d, context),
+                            
+                            """))}}
                         _ => source.GetHashCode()
                     };
                 }
@@ -513,7 +516,10 @@ public class HashableGenerator : IIncrementalGenerator
                         return source switch
                         {
                             {{Indent(derivedReachable.Select(derived =>
-                                $"{derived.FullyQualifiedName} d => {derived.ClassName}HashExtensions.HashValue(d, context),"))}}
+                                $"""
+                                {derived.FullyQualifiedName} d => {derived.ClassName}HashExtensions.HashValue(d, context),
+                                
+                                """))}}
                             _ => HashInternal(source, context)
                         };
                     }
