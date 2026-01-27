@@ -728,28 +728,21 @@ public class HashableGenerator : IIncrementalGenerator
         string hashBody;
         if (derivedTypes.Count > 0) // Has real derived types
         {
-            var switchCases = new System.Text.StringBuilder();
+            var switchCases = Indent(derivedTypes.Select(derived =>
+                $"{derived.FullyQualifiedName} => {derived.ClassName}HashExtensions.HashValue(({derived.FullyQualifiedName})this),"));
             
-            foreach (var derived in derivedTypes)
-            {
-                if (switchCases.Length > 0)
-                    switchCases.AppendLine();
-                    
-                switchCases.Append($"                {derived.FullyQualifiedName} => {derived.ClassName}HashExtensions.HashValue(({derived.FullyQualifiedName})this),");
-            }
-            
-            hashBody = $$"""
-                        return this switch
-                        {
-                            {{switchCases}}
-                            _ => {{classInfo.ClassName}}HashExtensions.HashValue(this)
-                        };
-            """;
+            hashBody = Indent($$"""
+                return this switch
+                {
+                    {{switchCases}}
+                    _ => {{classInfo.ClassName}}HashExtensions.HashValue(this)
+                };
+                """);
         }
         else
         {
             // Simple case: no derived types
-            hashBody = $"            return {classInfo.ClassName}HashExtensions.HashValue(this);";
+            hashBody = $"return {classInfo.ClassName}HashExtensions.HashValue(this);";
         }
 
         return Indent($$"""
@@ -758,7 +751,7 @@ public class HashableGenerator : IIncrementalGenerator
             {
                 public int HashValue()
                 {
-            {{hashBody}}
+                    {{hashBody}}
                 }
             }
             """);

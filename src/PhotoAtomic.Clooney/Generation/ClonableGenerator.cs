@@ -641,26 +641,19 @@ public class ClonableGenerator : IIncrementalGenerator
         string cloneBody;
         if (derivedTypes.Count > 0) // Has real derived types
         {
-            var switchCases = new System.Text.StringBuilder();
+            var switchCases = Indent(derivedTypes.Select(derived =>
+                $"""
+                {derived.FullyQualifiedName} => {derived.ClassName}Extensions.Clone(({derived.FullyQualifiedName})this),
+                
+                """));
             
-            foreach (var derived in derivedTypes)
-            {
-                if (switchCases.Length > 0)
-                    switchCases.AppendLine();
-                    
-                switchCases.Append($"""
-                    {derived.FullyQualifiedName} => {derived.ClassName}Extensions.Clone(({derived.FullyQualifiedName})this),
-
-                    """);
-            }
-            
-            cloneBody = $$"""
-                        return this switch
-                        {
-                            {{switchCases}}
-                            _ => {{classInfo.ClassName}}Extensions.Clone(this)
-                        };
-            """;
+            cloneBody = Indent($$"""
+                return this switch
+                {
+                    {{switchCases}}
+                    _ => {{classInfo.ClassName}}Extensions.Clone(this)
+                };
+                """);
         }
         else
         {
