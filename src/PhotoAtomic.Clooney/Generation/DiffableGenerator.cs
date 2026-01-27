@@ -36,7 +36,7 @@ public class DiffableGenerator : IIncrementalGenerator
 
         var compilationAndRoots = context.CompilationProvider.Combine(roots.Collect());
 
-        context.RegisterSourceOutput(compilationAndRoots, static (spc, data) =>
+        context.RegisterSourceOutput(compilationAndRoots, (spc, data) =>
         {
             var compilation = data.Left;
             var rootInfos = data.Right.Where(x => x is not null).Select(x => x!).ToList();
@@ -51,8 +51,9 @@ public class DiffableGenerator : IIncrementalGenerator
 
             foreach (var classInfo in reachable.Values)
             {
-                var code = GenerateDiffExtensions(classInfo, reachable);
-                var hintName = $"{classInfo.Namespace}.{classInfo.ClassName}.Diff.g.cs".Replace('.', '_');
+                var code = GenerateDiffExtensions(classInfo, reachable, rootInfos);
+                var namespacePart = classInfo.Namespace.Replace('.', '_');
+                var hintName = $"{namespacePart}_{classInfo.ClassName}.Diff.g.cs";
                 spc.AddSource(hintName, code);
             }
         });
@@ -92,22 +93,22 @@ public class DiffableGenerator : IIncrementalGenerator
     private static Dictionary<INamedTypeSymbol, ClassInfo> BuildReachableTypes(IEnumerable<ClassInfo> roots, Compilation compilation)
     {
         var reachable = new Dictionary<INamedTypeSymbol, ClassInfo>(SymbolEqualityComparer.Default);
-        var queue = new Queue<(INamedTypeSymbol symbol, HashSet<string> excludes)>();
+        var queue = new Queue<(INamedTypeSymbol symbol, HashSet<string> excludes, bool isRoot)>();
 
         foreach (var root in roots)
         {
-            queue.Enqueue((root.Symbol, root.ExcludedProperties));
+            queue.Enqueue((root.Symbol, root.ExcludedProperties, isRoot: true));
         }
 
         while (queue.Count > 0)
         {
-            var (symbol, excludes) = queue.Dequeue();
+            var (symbol, excludes, isRoot) = queue.Dequeue();
             if (reachable.ContainsKey(symbol))
             {
                 continue;
             }
 
-            var classInfo = BuildClassInfo(symbol, excludes);
+            var classInfo = BuildClassInfo(symbol, excludes, isRoot);
             reachable[symbol] = classInfo;
 
             // If this is an abstract class or interface, find all derived types in the compilation
@@ -118,7 +119,7 @@ public class DiffableGenerator : IIncrementalGenerator
                 {
                     if (ShouldEnqueue(derivedType))
                     {
-                        queue.Enqueue((derivedType, GetExcludes(derivedType)));
+                        queue.Enqueue((derivedType, GetExcludes(derivedType), isRoot: false));
                     }
                 }
             }
@@ -128,14 +129,14 @@ public class DiffableGenerator : IIncrementalGenerator
                 var candidate = GetCandidateType(prop);
                 if (candidate is INamedTypeSymbol named && ShouldEnqueue(named))
                 {
-                    queue.Enqueue((named, GetExcludes(named)));
+                    queue.Enqueue((named, GetExcludes(named), isRoot: false));
                 }
 
                 foreach (var known in prop.KnownTypes)
                 {
                     if (known is INamedTypeSymbol knownNamed && ShouldEnqueue(knownNamed))
                     {
-                        queue.Enqueue((knownNamed, GetExcludes(knownNamed)));
+                        queue.Enqueue((knownNamed, GetExcludes(knownNamed), isRoot: false));
                     }
                 }
             }
@@ -420,14 +421,12 @@ public class DiffableGenerator : IIncrementalGenerator
             .Any(m => m.IsExtensionMethod || m.MethodKind == MethodKind.Ordinary);
     }
 
-    private static string GenerateDiffExtensions(
-        ClassInfo classInfo,
-        Dictionary<INamedTypeSymbol, ClassInfo> reachable)
+    private static string GenerateDiffExtensions(ClassInfo classInfo, Dictionary<INamedTypeSymbol, ClassInfo> reachable, List<ClassInfo> allRoots)
     {
         var simpleDiff = GenerateSimpleDiff(classInfo);
         var trackedDiff = GenerateTrackedDiff(classInfo, reachable);
         var interfaceImpl = classInfo.IsRoot && classInfo.IsPartial && !classInfo.IsInterface && !classInfo.IsAbstract
-            ? GenerateDifferentiableInterface(classInfo)
+            ? GenerateDifferentiableInterface(classInfo, allRoots)
             : null;
 
         return Indent($$"""
@@ -511,9 +510,9 @@ public class DiffableGenerator : IIncrementalGenerator
         if (classInfo.IsInterface || classInfo.IsAbstract)
         {
             var interfaceChecks = string.Join("\n", derivedReachable.Select((derived, index) => Indent($$"""
-                if (source is {{derived.FullyQualifiedName}} typed{{index}} && other is {{derived.FullyQualifiedName}} typed{{index}}Other)
+                if (source is {{derived.FullyQualifiedName}} sd{{index}} && other is {{derived.FullyQualifiedName}} od{{index}})
                 {
-                    foreach (var diff in typed{{index}}.Diff(typed{{index}}Other, context))
+                    foreach (var diff in {{derived.ClassName}}DiffExtensions.Diff(sd{{index}}, od{{index}}, context))
                         yield return diff;
                     yield break;
                 }
@@ -586,13 +585,30 @@ public class DiffableGenerator : IIncrementalGenerator
         }
 
         var derivedChecks = string.Join("\n", derivedReachable.Select((derived, index) => Indent($$"""
-            if (source is {{derived.FullyQualifiedName}} typed{{index}} && other is {{derived.FullyQualifiedName}} typed{{index}}Other)
+            if (source is {{derived.FullyQualifiedName}} sd{{index}} && other is {{derived.FullyQualifiedName}} od{{index}})
             {
-                foreach (var diff in typed{{index}}.Diff(typed{{index}}Other, context))
+                foreach (var diff in {{derived.ClassName}}DiffExtensions.Diff(sd{{index}}, od{{index}}, context))
                     yield return diff;
                 yield break;
             }
             """)));
+
+        var typeCheck = derivedReachable.Any() 
+            ? $$"""
+                
+                // Check if types are different (after checking for exact derived type matches)
+                if (source!.GetType() != other!.GetType())
+                {
+                    yield return new PhotoAtomic.Clooney.DifferencePath(
+                        new PhotoAtomic.Clooney.ValueNode(
+                            "Type",
+                            "System.Type",
+                            source.GetType().FullName,
+                            other.GetType().FullName));
+                    yield break;
+                }
+                """
+            : "";
 
         var propertyDiffs = classInfo.Properties.Select(prop =>
             GeneratePropertyDiffCode(classInfo, prop, reachable));
@@ -633,7 +649,7 @@ public class DiffableGenerator : IIncrementalGenerator
                     yield break;
                 }
                 
-                {{derivedChecks}}
+                {{derivedChecks}}{{typeCheck}}
                 
                 // Check if this pair was already visited
                 var isNew = context.TryRegisterPair(source!, other!, out var structuralDiff);
@@ -661,7 +677,8 @@ public class DiffableGenerator : IIncrementalGenerator
         return reachable.Values
             .Where(ci => !SymbolEqualityComparer.Default.Equals(ci.Symbol, baseInfo.Symbol))
             .Where(ci => IsAssignableTo(ci.Symbol, baseInfo.Symbol))
-            .OrderBy(ci => ci.FullyQualifiedName);
+            .OrderByDescending(ci => GetInheritanceDepth(ci.Symbol))  // Deepest first
+            .ThenBy(ci => ci.FullyQualifiedName);  // Then alphabetical for stability
     }
 
     private static bool IsAssignableTo(INamedTypeSymbol symbol, INamedTypeSymbol target)
@@ -1113,19 +1130,101 @@ public class DiffableGenerator : IIncrementalGenerator
         return type is INamedTypeSymbol named && reachable.ContainsKey(named);
     }
 
-    private static string GenerateDifferentiableInterface(ClassInfo classInfo)
+    private static string GenerateDifferentiableInterface(ClassInfo classInfo, List<ClassInfo> allRoots)
     {
+        // Find all types that derive from this class (excluding itself and abstract/interface types)
+        var derivedTypes = FindDerivedTypes(classInfo, allRoots)
+            .Where(d => !SymbolEqualityComparer.Default.Equals(d.Symbol, classInfo.Symbol))
+            .Where(d => !d.IsAbstract && !d.IsInterface)
+            .ToList();
+        
+        // Generate switch expression if there are derived types
+        string diffBody;
+        if (derivedTypes.Count > 0) // Has real derived types
+        {
+            var switchCases = new System.Text.StringBuilder();
+            
+            foreach (var derived in derivedTypes)
+            {
+                if (switchCases.Length > 0)
+                    switchCases.AppendLine();
+                    
+                // Cast both this and other to the derived type, but check other's type first
+                switchCases.Append($"                {derived.FullyQualifiedName} when other is {derived.FullyQualifiedName} od => {derived.ClassName}DiffExtensions.Diff(({derived.FullyQualifiedName})this, od),");
+            }
+            
+            diffBody = $$"""
+                        return this switch
+                        {
+                            {{switchCases}}
+                            _ => {{classInfo.ClassName}}DiffExtensions.Diff(this, other)
+                        };
+            """;
+        }
+        else
+        {
+            // Simple case: no derived types
+            diffBody = $"            return {classInfo.ClassName}DiffExtensions.Diff(this, other);";
+        }
+
         return Indent($$"""
             
             public partial class {{classInfo.ClassName}} : PhotoAtomic.Clooney.IDifferentiable<{{classInfo.FullyQualifiedName}}>
             {
                 public global::System.Collections.Generic.IEnumerable<PhotoAtomic.Clooney.DifferencePath> Diff({{classInfo.FullyQualifiedName}}? other)
                 {
-                    return {{classInfo.ClassName}}DiffExtensions.Diff(this, other);
+            {{diffBody}}
                 }
             }
             """);
     }
+
+    private static List<ClassInfo> FindDerivedTypes(ClassInfo baseClass, List<ClassInfo> allTypes)
+    {
+        var result = new List<ClassInfo>();
+        
+        foreach (var type in allTypes)
+        {
+            if (IsDerivedFrom(type.Symbol, baseClass.Symbol))
+            {
+                result.Add(type);
+            }
+        }
+        
+        // Sort by inheritance depth (deepest first)
+        result.Sort((a, b) => GetInheritanceDepth(b.Symbol) - GetInheritanceDepth(a.Symbol));
+        
+        return result;
+    }
+    
+    private static bool IsDerivedFrom(INamedTypeSymbol derived, INamedTypeSymbol baseType)
+    {
+        var current = derived;
+        while (current != null)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, baseType))
+            {
+                return true;
+            }
+            current = current.BaseType;
+        }
+        return false;
+    }
+    
+    private static int GetInheritanceDepth(INamedTypeSymbol type)
+    {
+        int depth = 0;
+        var current = type.BaseType;
+        while (current != null && current.SpecialType != SpecialType.System_Object)
+        {
+            depth++;
+            current = current.BaseType;
+        }
+        return depth;
+    }
 }
+
+
+
 
 

@@ -44,7 +44,7 @@ public class HashableGenerator : IIncrementalGenerator
 
         var compilationAndRoots = context.CompilationProvider.Combine(roots.Collect());
 
-        context.RegisterSourceOutput(compilationAndRoots, static (spc, data) =>
+        context.RegisterSourceOutput(compilationAndRoots, (spc, data) =>
         {
             var compilation = data.Left;
             var rootInfos = data.Right.Where(x => x is not null).Select(x => x!).ToList();
@@ -59,8 +59,9 @@ public class HashableGenerator : IIncrementalGenerator
 
             foreach (var classInfo in reachable.Values)
             {
-                var code = GenerateHashExtensions(classInfo, reachable);
-                var hintName = $"{classInfo.Namespace}.{classInfo.ClassName}.Hash.g.cs".Replace('.', '_');
+                var code = GenerateHashExtensions(classInfo, reachable, rootInfos);
+                var namespacePart = classInfo.Namespace.Replace('.', '_');
+                var hintName = $"{namespacePart}_{classInfo.ClassName}.Hash.g.cs";
                 spc.AddSource(hintName, code);
             }
         });
@@ -100,22 +101,22 @@ public class HashableGenerator : IIncrementalGenerator
     private static Dictionary<INamedTypeSymbol, ClassInfo> BuildReachableTypes(IEnumerable<ClassInfo> roots, Compilation compilation)
     {
         var reachable = new Dictionary<INamedTypeSymbol, ClassInfo>(SymbolEqualityComparer.Default);
-        var queue = new Queue<(INamedTypeSymbol symbol, HashSet<string> excludes)>();
+        var queue = new Queue<(INamedTypeSymbol symbol, HashSet<string> excludes, bool isRoot)>();
 
         foreach (var root in roots)
         {
-            queue.Enqueue((root.Symbol, root.ExcludedProperties));
+            queue.Enqueue((root.Symbol, root.ExcludedProperties, isRoot: true));
         }
 
         while (queue.Count > 0)
         {
-            var (symbol, excludes) = queue.Dequeue();
+            var (symbol, excludes, isRoot) = queue.Dequeue();
             if (reachable.ContainsKey(symbol))
             {
                 continue;
             }
 
-            var classInfo = BuildClassInfo(symbol, excludes);
+            var classInfo = BuildClassInfo(symbol, excludes, isRoot);
             reachable[symbol] = classInfo;
 
             // If this is an abstract class or interface, find all derived types in the compilation
@@ -126,7 +127,7 @@ public class HashableGenerator : IIncrementalGenerator
                 {
                     if (ShouldEnqueue(derivedType))
                     {
-                        queue.Enqueue((derivedType, GetExcludes(derivedType)));
+                        queue.Enqueue((derivedType, GetExcludes(derivedType), isRoot: false));
                     }
                 }
             }
@@ -136,14 +137,14 @@ public class HashableGenerator : IIncrementalGenerator
                 var candidate = GetCandidateType(prop);
                 if (candidate is INamedTypeSymbol named && ShouldEnqueue(named))
                 {
-                    queue.Enqueue((named, GetExcludes(named)));
+                    queue.Enqueue((named, GetExcludes(named), isRoot: false));
                 }
 
                 foreach (var known in prop.KnownTypes)
                 {
                     if (known is INamedTypeSymbol knownNamed && ShouldEnqueue(knownNamed))
                     {
-                        queue.Enqueue((knownNamed, GetExcludes(knownNamed)));
+                        queue.Enqueue((knownNamed, GetExcludes(knownNamed), isRoot: false));
                     }
                 }
             }
@@ -280,12 +281,26 @@ public class HashableGenerator : IIncrementalGenerator
     {
         var isPartial = IsPartial(classSymbol);
 
-        var properties = classSymbol.GetMembers()
-            .OfType<IPropertySymbol>()
-            .Where(p => p.DeclaredAccessibility == Accessibility.Public)
-            .Where(p => p.GetMethod != null && p.GetMethod.DeclaredAccessibility == Accessibility.Public)
-            .Where(p => !excludedProps.Contains(p.Name))
-            .Where(p => !HasSkipHash(p))
+        // Get all properties including inherited ones
+        var allProperties = new List<IPropertySymbol>();
+        var current = classSymbol;
+        while (current != null && current.SpecialType != SpecialType.System_Object)
+        {
+            var declaredProps = current.GetMembers()
+                .OfType<IPropertySymbol>()
+                .Where(p => p.DeclaredAccessibility == Accessibility.Public)
+                .Where(p => p.GetMethod != null && p.GetMethod.DeclaredAccessibility == Accessibility.Public)
+                .Where(p => !excludedProps.Contains(p.Name))
+                .Where(p => !HasSkipHash(p));
+            
+            allProperties.AddRange(declaredProps);
+            current = current.BaseType;
+        }
+
+        // Remove duplicates (in case of overridden properties, keep the most derived one)
+        var properties = allProperties
+            .GroupBy(p => p.Name)
+            .Select(g => g.First())
             .Select(p => CreatePropertyInfo(p, isPartial))
             .ToList();
 
@@ -409,12 +424,13 @@ public class HashableGenerator : IIncrementalGenerator
 
     private static string GenerateHashExtensions(
         ClassInfo classInfo,
-        Dictionary<INamedTypeSymbol, ClassInfo> reachable)
+        Dictionary<INamedTypeSymbol, ClassInfo> reachable,
+        List<ClassInfo> allRoots)
     {
         var simpleHash = GenerateSimpleHash(classInfo);
         var trackedHash = GenerateTrackedHash(classInfo, reachable);
         var interfaceImpl = classInfo.IsRoot && classInfo.IsPartial && !classInfo.IsInterface && !classInfo.IsAbstract
-            ? GenerateHashableInterface(classInfo)
+            ? GenerateHashableInterface(classInfo, allRoots)
             : null;
 
         return Indent($$"""
@@ -472,10 +488,6 @@ public class HashableGenerator : IIncrementalGenerator
 
         if (classInfo.IsInterface || classInfo.IsAbstract)
         {
-            // Generate unique variable names for each derived type check
-            var interfaceChecks = derivedReachable.Select((derived, index) =>
-                $"if (source is {derived.FullyQualifiedName} typed{index}) return typed{index}.HashValue(context);");
-            
             return Indent($$"""
                 /// <summary>
                 /// Computes a hash value with reference tracking (supports circular references).
@@ -484,17 +496,34 @@ public class HashableGenerator : IIncrementalGenerator
                     this {{classInfo.FullyQualifiedName}}? source,
                     PhotoAtomic.Clooney.HashContext context)
                 {
-                    if (source == null) return 0;
-                    {{Indent(interfaceChecks)}}
-                    
-                    // Fallback for unknown derived types
-                    return source.GetHashCode();
+                    return source switch
+                    {
+                        null => 0,
+                        {{Indent(derivedReachable.Select(derived =>
+                            $"{derived.FullyQualifiedName} d => {derived.ClassName}HashExtensions.HashValue(d, context),"))}}
+                        _ => source.GetHashCode()
+                    };
                 }
                 """);
         }
 
-        var derivedChecks = derivedReachable.Select((derived, index) =>
-            $"if (source is {derived.FullyQualifiedName} typed{index}) return typed{index}.HashValue(context);");
+        var derivedChecks = derivedReachable.Any()
+            ? Indent($$"""
+                
+                        return source switch
+                        {
+                            {{Indent(derivedReachable.Select(derived =>
+                                $"{derived.FullyQualifiedName} d => {derived.ClassName}HashExtensions.HashValue(d, context),"))}}
+                            _ => HashInternal(source, context)
+                        };
+                    }
+                    
+                    private static int HashInternal(
+                        {{classInfo.FullyQualifiedName}} source,
+                        PhotoAtomic.Clooney.HashContext context)
+                    {
+                """)
+            : "";
 
         return Indent($$"""
             /// <summary>
@@ -504,8 +533,7 @@ public class HashableGenerator : IIncrementalGenerator
                 this {{classInfo.FullyQualifiedName}}? source,
                 PhotoAtomic.Clooney.HashContext context)
             {
-                if (source == null) return 0;
-                {{Indent(derivedChecks)}}
+                if (source == null) return 0;{{derivedChecks}}
             
                 // Get or assign reference ID for this object
                 var refId = context.GetOrAssignId(source, out var isNew);
@@ -526,6 +554,7 @@ public class HashableGenerator : IIncrementalGenerator
                     return $"hash = CombineHash(hash, {hashExpr});";
                 }))}}
                 
+                
                 return hash;
             }
             """);
@@ -536,7 +565,8 @@ public class HashableGenerator : IIncrementalGenerator
         return reachable.Values
             .Where(ci => !SymbolEqualityComparer.Default.Equals(ci.Symbol, baseInfo.Symbol))
             .Where(ci => IsAssignableTo(ci.Symbol, baseInfo.Symbol))
-            .OrderBy(ci => ci.FullyQualifiedName);
+            .OrderByDescending(ci => GetInheritanceDepth(ci.Symbol))  // Deepest first
+            .ThenBy(ci => ci.FullyQualifiedName);  // Then alphabetical for stability
     }
 
     private static bool IsAssignableTo(INamedTypeSymbol symbol, INamedTypeSymbol target)
@@ -679,17 +709,96 @@ public class HashableGenerator : IIncrementalGenerator
         return type is INamedTypeSymbol named && reachable.ContainsKey(named);
     }
 
-    private static string GenerateHashableInterface(ClassInfo classInfo)
+
+    private static string GenerateHashableInterface(ClassInfo classInfo, List<ClassInfo> allRoots)
     {
+        // Find all types that derive from this class (excluding itself and abstract/interface types)
+        var derivedTypes = FindDerivedTypes(classInfo, allRoots)
+            .Where(d => !SymbolEqualityComparer.Default.Equals(d.Symbol, classInfo.Symbol))
+            .Where(d => !d.IsAbstract && !d.IsInterface)
+            .ToList();
+        
+        // Generate switch expression if there are derived types
+        string hashBody;
+        if (derivedTypes.Count > 0) // Has real derived types
+        {
+            var switchCases = new System.Text.StringBuilder();
+            
+            foreach (var derived in derivedTypes)
+            {
+                if (switchCases.Length > 0)
+                    switchCases.AppendLine();
+                    
+                switchCases.Append($"                {derived.FullyQualifiedName} => {derived.ClassName}HashExtensions.HashValue(({derived.FullyQualifiedName})this),");
+            }
+            
+            hashBody = $$"""
+                        return this switch
+                        {
+                            {{switchCases}}
+                            _ => {{classInfo.ClassName}}HashExtensions.HashValue(this)
+                        };
+            """;
+        }
+        else
+        {
+            // Simple case: no derived types
+            hashBody = $"            return {classInfo.ClassName}HashExtensions.HashValue(this);";
+        }
+
         return Indent($$"""
             
             public partial class {{classInfo.ClassName}} : PhotoAtomic.Clooney.IHashable
             {
                 public int HashValue()
                 {
-                    return {{classInfo.ClassName}}HashExtensions.HashValue(this);
+            {{hashBody}}
                 }
             }
             """);
+    }
+
+    private static List<ClassInfo> FindDerivedTypes(ClassInfo baseClass, List<ClassInfo> allTypes)
+    {
+        var result = new List<ClassInfo>();
+        
+        foreach (var type in allTypes)
+        {
+            if (IsDerivedFrom(type.Symbol, baseClass.Symbol))
+            {
+                result.Add(type);
+            }
+        }
+        
+        // Sort by inheritance depth (deepest first)
+        result.Sort((a, b) => GetInheritanceDepth(b.Symbol) - GetInheritanceDepth(a.Symbol));
+        
+        return result;
+    }
+    
+    private static bool IsDerivedFrom(INamedTypeSymbol derived, INamedTypeSymbol baseType)
+    {
+        var current = derived;
+        while (current != null)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, baseType))
+            {
+                return true;
+            }
+            current = current.BaseType;
+        }
+        return false;
+    }
+    
+    private static int GetInheritanceDepth(INamedTypeSymbol type)
+    {
+        int depth = 0;
+        var current = type.BaseType;
+        while (current != null && current.SpecialType != SpecialType.System_Object)
+        {
+            depth++;
+            current = current.BaseType;
+        }
+        return depth;
     }
 }
