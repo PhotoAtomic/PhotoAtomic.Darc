@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PhotoAtomic.IndentedStrings\PhotoAtomic.IndentedStrings.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\PhotoAtomic.Clooney.Abstractions\PhotoAtomic.Clooney.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

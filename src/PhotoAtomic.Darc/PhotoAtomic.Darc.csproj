@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" />
+    <ProjectReference Include="..\PhotoAtomic.Clooney.Abstractions\PhotoAtomic.Clooney.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>
