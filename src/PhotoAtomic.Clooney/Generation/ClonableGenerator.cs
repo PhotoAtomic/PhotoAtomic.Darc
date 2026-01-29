@@ -21,7 +21,7 @@ public class ClonableGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor ObjectWithoutKnownType = new(
         id: "PACLOON001",
         title: "Uncloneable object/dynamic property",
-        messageFormat: "Clonable class '{0}' has property '{1}' of type '{2}' without [KnownType]; cannot generate reliable clone.",
+        messageFormat: "Clonable class '{0}' has property '{1}' of type '{2}' without [KnownType]; cannot generate reliable clone",
         category: "PhotoAtomic.Clooney",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);

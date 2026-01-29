@@ -20,7 +20,7 @@ public class HashableGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor ObjectWithoutKnownType = new(
         id: "PAHASH001",
         title: "Unhashable object/dynamic property",
-        messageFormat: "Hashable class '{0}' has property '{1}' of type '{2}' without [KnownType]; cannot generate reliable hash.",
+        messageFormat: "Hashable class '{0}' has property '{1}' of type '{2}' without [KnownType]; cannot generate reliable hash",
         category: "PhotoAtomic.Clooney",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -28,7 +28,7 @@ public class HashableGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor UnhashablePropertyWarning = new(
         id: "PAHASH002",
         title: "Property will not be hashed",
-        messageFormat: "Hashable class '{0}' has property '{1}' without a public getter; it will not be included in hash.",
+        messageFormat: "Hashable class '{0}' has property '{1}' without a public getter; it will not be included in hash",
         category: "PhotoAtomic.Clooney",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);

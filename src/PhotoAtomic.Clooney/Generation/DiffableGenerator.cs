@@ -20,7 +20,7 @@ public class DiffableGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor ObjectWithoutKnownType = new(
         id: "PADIFF001",
         title: "Undiffable object/dynamic property",
-        messageFormat: "Diffable class '{0}' has property '{1}' of type '{2}' without [KnownType]; cannot generate reliable diff.",
+        messageFormat: "Diffable class '{0}' has property '{1}' of type '{2}' without [KnownType]; cannot generate reliable diff",
         category: "PhotoAtomic.Clooney",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
