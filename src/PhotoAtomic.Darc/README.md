@@ -312,3 +312,7 @@ Contributions are welcome! Please open an issue or pull request.
 - [KurrentDB Documentation](https://www.kurrentdb.com/)
 - [EventStoreDB Documentation](https://developers.eventstore.com/) (KurrentDB is compatible)
 - [Event Sourcing Pattern](https://martinfowler.com/eaaDev/EventSourcing.html)
+
+## Internal technical details
+
+For a deeper look at stream layout, 2PC phases and DI registration internals, see [docs/internals.md](docs/internals.md).
