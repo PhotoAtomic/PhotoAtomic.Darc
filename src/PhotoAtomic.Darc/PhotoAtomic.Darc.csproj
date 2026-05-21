@@ -6,18 +6,45 @@
     <Nullable>enable</Nullable>
     <!-- Enable Orleans source generators -->
     <GenerateOrleansCode>true</GenerateOrleansCode>
+
+    <!-- NuGet package metadata -->
+    <IsPackable>true</IsPackable>
+    <PackageId>PhotoAtomic.Darc</PackageId>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <Authors>PhotoAtomic</Authors>
+    <Company>PhotoAtomic</Company>
+    <Product>PhotoAtomic.Darc</Product>
+    <Description>Transactional state storage for Microsoft Orleans backed by KurrentDB (EventStoreDB). Implements ITransactionalStateStorage with both optimistic and pessimistic concurrency strategies.</Description>
+    <PackageTags>Orleans;KurrentDB;EventStore;Transactions;EventSourcing;Grains;Distributed</PackageTags>
+    <PackageProjectUrl>https://github.com/PhotoAtomic/PhotoAtomic.Darc</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/PhotoAtomic/PhotoAtomic.Darc</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\PhotoAtomic.Darc\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Build-time only: Orleans source generator SDK, not needed by consumers -->
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="10.1.0" PrivateAssets="all" />
+    <!-- Runtime dependencies: consumers must have these installed -->
     <PackageReference Include="Microsoft.Orleans.Transactions" Version="10.1.0" />
     <PackageReference Include="KurrentDB.Client" Version="1.4.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" />
-    <ProjectReference Include="..\PhotoAtomic.Clooney.Abstractions\PhotoAtomic.Clooney.Abstractions.csproj" />
+    <!-- PhotoAtomic.Clooney is a Roslyn source generator: used only at compile-time, not shipped in the output assembly -->
+    <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <!-- PhotoAtomic.Clooney.Abstractions contains attribute types referenced in Darc's code: bundled into the output, not exposed as a NuGet dependency -->
+    <ProjectReference Include="..\PhotoAtomic.Clooney.Abstractions\PhotoAtomic.Clooney.Abstractions.csproj" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

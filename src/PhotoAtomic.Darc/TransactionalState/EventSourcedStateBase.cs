@@ -1,5 +1,5 @@
 using Orleans;
-using PhotoAtomic.Clooney;
+using PhotoAtomic.Clooney.Abstractions;
 
 namespace PhotoAtomic.Darc.TransactionalState;
 
