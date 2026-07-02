@@ -4,12 +4,12 @@
 
 ## Features
 
-- ? **Full Orleans.Transactions Support**: Implements `ITransactionalStateStorage<T>` for seamless integration
-- ?? **Optimistic Concurrency**: High-throughput approach with in-memory prepare and atomic batch commits
-- ?? **Pessimistic Locking**: Traditional write-ahead logging with pending events in the stream
-- ?? **Event Sourcing**: Built-in support for event sourcing patterns
-- ?? **Strongly Typed**: Fully typed with C# generics
-- ?? **KurrentDB Native**: Uses KurrentDB.Client for optimal compatibility
+-  **Full Orleans.Transactions Support**: Implements `ITransactionalStateStorage<T>` for seamless integration
+-  **Optimistic Concurrency**: High-throughput approach with in-memory prepare and atomic batch commits
+-  **Pessimistic Locking**: Traditional write-ahead logging with pending events in the stream
+-  **Event Sourcing**: Built-in support for event sourcing patterns
+-  **Strongly Typed**: Fully typed with C# generics
+-  **KurrentDB Native**: Uses KurrentDB.Client for optimal compatibility
 
 ## Installation
 
@@ -147,10 +147,10 @@ Metadata Stream: {grainType}-{grainKey}-{stateName}-metadata ? Transaction metad
 ```
 
 #### Key Principles
-- ? **Main stream is immutable and clean**: Contains only committed domain events
-- ? **No control events**: No transaction markers or metadata in main stream
-- ? **Pending stream is ephemeral**: Created during PREPARE, deleted after COMMIT/ABORT
-- ? **Pure event sourcing**: Rebuild state by replaying main stream events
+-  **Main stream is immutable and clean**: Contains only committed domain events
+-  **No control events**: No transaction markers or metadata in main stream
+-  **Pending stream is ephemeral**: Created during PREPARE, deleted after COMMIT/ABORT
+-  **Pure event sourcing**: Rebuild state by replaying main stream events
 
 ### Optimistic Approach
 
@@ -158,41 +158,41 @@ Metadata Stream: {grainType}-{grainKey}-{stateName}-metadata ? Transaction metad
 
 ```
 PHASE 1: PREPARE (Zero I/O!)
-?? Grain A: Events stored in-memory
-?? Grain B: Events stored in-memory
-?? ? No database writes!
+  Grain A: Events stored in-memory
+  Grain B: Events stored in-memory
+   No database writes!
 
 PHASE 2: COMMIT (Atomic Batch)
-?? Write ALL events to MAIN stream atomically
-    ?? Stream: account-123-balance
-    ?? Events: [MoneyWithdrawn, MoneyDeposited]
-    ?? Optimistic concurrency check
-    ?? ? If conflict ? automatic retry
+ Write ALL events to MAIN stream atomically
+   Stream: account-123-balance
+   Events: [MoneyWithdrawn, MoneyDeposited]
+   Optimistic concurrency check
+    If conflict ? automatic retry
 
 PHASE 3: ABORT
-?? Discard in-memory events (no I/O)
+ Discard in-memory events (no I/O)
 ```
 
 **Stream Layout:**
 ```
 account-123-balance (main stream - committed events only)
-?? Event 1: MoneyDeposited(+100)
-?? Event 2: MoneyWithdrawn(-50)
-?? Event 3: MoneyDeposited(+200)
+ Event 1: MoneyDeposited(+100)
+ Event 2: MoneyWithdrawn(-50)
+ Event 3: MoneyDeposited(+200)
 
 NO pending stream used!
 ```
 
 **Benefits:**
-- ?? **10-50x faster** prepare phase (no I/O)
-- ? **3x lower latency** for 2PC
-- ?? **Atomic commits** across multiple streams
-- ?? **Clean streams**: Only committed events in main stream
+-  **10-50x faster** prepare phase (no I/O)
+-  **3x lower latency** for 2PC
+-  **Atomic commits** across multiple streams
+-  **Clean streams**: Only committed events in main stream
 
 **Limitations:**
-- ?? Requires KurrentDB 24.2+
-- ?? Higher memory footprint (pending in RAM)
-- ?? Retry overhead under high contention (>30%)
+-  Requires KurrentDB 24.2+
+-  Higher memory footprint (pending in RAM)
+-  Retry overhead under high contention (>30%)
 
 ### Pessimistic Approach
 
@@ -200,19 +200,19 @@ NO pending stream used!
 
 ```
 PHASE 1: PREPARE (Write-Ahead Log)
-?? Transaction A: Append events to shared PENDING stream
-?   ?? account-123-balance-pending
-?? Transaction B: Append events to shared PENDING stream
-?   ?? account-123-balance-pending (same stream!)
-?? ? All transactions share the same pending stream
+ Transaction A: Append events to shared PENDING stream
+    account-123-balance-pending
+ Transaction B: Append events to shared PENDING stream
+    account-123-balance-pending (same stream!)
+  All transactions share the same pending stream
 
 PHASE 2: COMMIT
-?? Read events from shared PENDING stream
-?   ?? Filter by SequenceId <= commitUpTo
-?? Write clean events to MAIN stream
-?   ?? account-123-balance (no transaction metadata!)
-?? Delete shared PENDING stream with DeleteAsync()
-    ?? ? Stream name available for next PREPARE!
+ Read events from shared PENDING stream
+    Filter by SequenceId <= commitUpTo
+ Write clean events to MAIN stream
+    account-123-balance (no transaction metadata!)
+ Delete shared PENDING stream with DeleteAsync()
+      Stream name available for next PREPARE!
 
 PHASE 3: ABORT
 ?? Delete shared PENDING stream with DeleteAsync()
@@ -222,39 +222,39 @@ PHASE 3: ABORT
 ```
 DURING PREPARE (Multiple transactions):
 account-123-balance-pending (SHARED stream)
-?? Event 1: MoneyWithdrawn(-100) [metadata: txId=A, seqId=1]
-?? Event 2: MoneyDeposited(+50)  [metadata: txId=A, seqId=1]
-?? Event 3: MoneyDeposited(+200) [metadata: txId=B, seqId=2]
-?? Event 4: MoneyWithdrawn(-30)  [metadata: txId=B, seqId=2]
-    ? All transactions write to same stream!
+ Event 1: MoneyWithdrawn(-100) [metadata: txId=A, seqId=1]
+ Event 2: MoneyDeposited(+50)  [metadata: txId=A, seqId=1]
+ Event 3: MoneyDeposited(+200) [metadata: txId=B, seqId=2]
+ Event 4: MoneyWithdrawn(-30)  [metadata: txId=B, seqId=2]
+     All transactions write to same stream!
 
 AFTER COMMIT (Transaction A with seqId=1):
 account-123-balance (main stream - clean!)
-?? Event 1: MoneyWithdrawn(-100) [NO metadata]
-?? Event 2: MoneyDeposited(+50)  [NO metadata]
+ Event 1: MoneyWithdrawn(-100) [NO metadata]
+ Event 2: MoneyDeposited(+50)  [NO metadata]
 
 account-123-balance-pending ? DELETED ?
 (Will be recreated on next PREPARE)
 
 Next PREPARE (Transaction C):
 account-123-balance-pending (recreated)
-?? Event 1: MoneyDeposited(+100) [metadata: txId=C, seqId=3]
+ Event 1: MoneyDeposited(+100) [metadata: txId=C, seqId=3]
 ```
 
 **Benefits:**
-- ? Traditional 2PC with write-ahead logging
-- ? Lower memory footprint
-- ? Works with any KurrentDB version
-- ?? **Clean main stream**: No transaction metadata or control events
-- ?? **Durable pending**: Survives crashes during prepare
-- ?? **Stream reuse**: DeleteAsync() allows same stream name reuse
-- ?? **Known stream location**: Always {streamName}-pending (discoverable after crash)
-- ?? **Multiple concurrent transactions**: All share same pending stream
+-  Traditional 2PC with write-ahead logging
+-  Lower memory footprint
+-  Works with any KurrentDB version
+-  **Clean main stream**: No transaction metadata or control events
+-  **Durable pending**: Survives crashes during prepare
+-  **Stream reuse**: DeleteAsync() allows same stream name reuse
+-  **Known stream location**: Always {streamName}-pending (discoverable after crash)
+-  **Multiple concurrent transactions**: All share same pending stream
 
 **Limitations:**
-- ?? 2 write operations per transaction (pending + main)
-- ?? Higher latency than optimistic
-- ?? Pending stream grows during concurrent transactions (cleared on commit)
+-  2 write operations per transaction (pending + main)
+-  Higher latency than optimistic
+-  Pending stream grows during concurrent transactions (cleared on commit)
 
 ## Event Sourcing Integration
 

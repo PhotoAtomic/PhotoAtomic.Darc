@@ -36,6 +36,10 @@ internal sealed class PropertyInfo
     public required bool HasCloneMethod { get; init; }
     public ITypeSymbol? CollectionElementTypeSymbol { get; init; }
     public string? CollectionElementType { get; init; }
+    public bool IsDictionary { get; init; }
+    public ITypeSymbol? DictionaryKeyTypeSymbol { get; init; }
+    public ITypeSymbol? DictionaryValueTypeSymbol { get; init; }
+    public string? DictionaryValueType { get; init; }
     public IReadOnlyList<ITypeSymbol> KnownTypes { get; init; } = Array.Empty<ITypeSymbol>();
     public bool HasPublicSetter { get; init; }
     public bool NeedsHelperSetter { get; init; }

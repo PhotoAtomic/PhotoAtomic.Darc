@@ -25,7 +25,9 @@ $ErrorActionPreference = "Stop"
 
 $buildDate   = Get-Date -Format "yyyyMMdd"
 $buildTime   = Get-Date -Format "HHmmss"
-$versionSuffix = "build.$buildDate.$buildTime"
+# Prefix the time with a letter so the SemVer pre-release identifier is alphanumeric.
+# A purely-numeric identifier with a leading zero (e.g. "094556") is invalid SemVer.
+$versionSuffix = "build.$buildDate.t$buildTime"
 
 $repoRoot   = $PSScriptRoot
 $project    = Join-Path $repoRoot "src\PhotoAtomic.Darc\PhotoAtomic.Darc.csproj"

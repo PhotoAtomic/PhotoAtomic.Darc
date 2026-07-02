@@ -25,6 +25,13 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Bundle the Clooney source generator (and its dependencies) into this package so that
+         consumers that reference only the PhotoAtomic.Darc package get [Clonable] code generation
+         without having to reference the Clooney source projects. See _AddClooneyGeneratorToPackage. -->
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_AddClooneyGeneratorToPackage</TargetsForTfmSpecificContentInPackage>
+    <!-- The package intentionally ships analyzer assemblies alongside lib assemblies. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -46,5 +53,31 @@
     <!-- PhotoAtomic.Clooney.Abstractions contains attribute types referenced in Darc's code: bundled into the output, not exposed as a NuGet dependency -->
     <ProjectReference Include="..\PhotoAtomic.Clooney.Abstractions\PhotoAtomic.Clooney.Abstractions.csproj" PrivateAssets="all" />
   </ItemGroup>
+
+  <!-- Adds the Clooney Roslyn source generator and its runtime dependencies to the NuGet package.
+       The generator + its dependencies go under analyzers/dotnet/cs so Roslyn loads them in consumer
+       projects. The Clooney assembly (which defines [Clonable]/[Diffable]/[Hashable] and the
+       Clone/Diff/Hash context types) and the abstractions assembly (which defines [SkipClone],
+       IClonable, etc.) are ALSO placed under lib so consumer code can reference those public types at
+       compile time — an analyzer-only assembly is not referenceable. -->
+  <Target Name="_AddClooneyGeneratorToPackage">
+    <PropertyGroup>
+      <_ClooneyBin>$(MSBuildThisFileDirectory)..\PhotoAtomic.Clooney\bin\$(Configuration)\netstandard2.0</_ClooneyBin>
+      <_IndentedBin>$(MSBuildThisFileDirectory)..\PhotoAtomic.IndentedStrings\bin\$(Configuration)\netstandard2.0</_IndentedBin>
+      <_AbstractionsBin>$(MSBuildThisFileDirectory)..\PhotoAtomic.Clooney.Abstractions\bin\$(Configuration)\netstandard2.0</_AbstractionsBin>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_ClooneyBin)\PhotoAtomic.Clooney.dll')"
+           Text="Clooney generator not found at '$(_ClooneyBin)\PhotoAtomic.Clooney.dll'. Build the solution in $(Configuration) before packing." />
+    <ItemGroup>
+      <!-- Source generator + dependencies into the analyzer path -->
+      <TfmSpecificPackageFile Include="$(_ClooneyBin)\PhotoAtomic.Clooney.dll" PackagePath="analyzers/dotnet/cs" />
+      <TfmSpecificPackageFile Include="$(_IndentedBin)\PhotoAtomic.IndentedStrings.dll" PackagePath="analyzers/dotnet/cs" />
+      <TfmSpecificPackageFile Include="$(_AbstractionsBin)\PhotoAtomic.Clooney.Abstractions.dll" PackagePath="analyzers/dotnet/cs" />
+      <!-- Clooney + Abstractions assemblies also into lib so consumer code can use the attribute types
+           ([Clonable]/[Diffable]/[Hashable] live in PhotoAtomic.Clooney; [SkipClone] in Abstractions). -->
+      <TfmSpecificPackageFile Include="$(_ClooneyBin)\PhotoAtomic.Clooney.dll" PackagePath="lib/$(TargetFramework)" />
+      <TfmSpecificPackageFile Include="$(_AbstractionsBin)\PhotoAtomic.Clooney.Abstractions.dll" PackagePath="lib/$(TargetFramework)" />
+    </ItemGroup>
+  </Target>
 
 </Project>

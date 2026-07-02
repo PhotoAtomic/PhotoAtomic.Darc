@@ -153,6 +153,11 @@ public class ClonableGenerator : IIncrementalGenerator
 
     private static ITypeSymbol? GetCandidateType(PropertyInfo prop)
     {
+        if (prop.IsDictionary)
+        {
+            return prop.DictionaryValueTypeSymbol ?? prop.TypeSymbol;
+        }
+
         if (prop.IsCollection)
         {
             return prop.CollectionElementTypeSymbol ?? prop.TypeSymbol;
@@ -263,6 +268,7 @@ public class ClonableGenerator : IIncrementalGenerator
         var type = property.Type;
         var isCollection = IsCollection(type);
         var collectionElementType = GetCollectionElementTypeSymbol(type);
+        var dictionaryTypes = GetDictionaryKeyValueTypeSymbols(type);
         var knownTypes = GetKnownTypes(property);
         var hasSetter = property.SetMethod != null;
         var hasPublicSetter = property.SetMethod?.DeclaredAccessibility == Accessibility.Public;
@@ -280,6 +286,10 @@ public class ClonableGenerator : IIncrementalGenerator
             HasCloneMethod = HasCloneMethod(type),
             CollectionElementTypeSymbol = collectionElementType,
             CollectionElementType = collectionElementType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            IsDictionary = dictionaryTypes is not null,
+            DictionaryKeyTypeSymbol = dictionaryTypes?.Key,
+            DictionaryValueTypeSymbol = dictionaryTypes?.Value,
+            DictionaryValueType = dictionaryTypes?.Value.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             KnownTypes = knownTypes,
             HasPublicSetter = hasPublicSetter,
             NeedsHelperSetter = needsHelper
@@ -315,6 +325,36 @@ public class ClonableGenerator : IIncrementalGenerator
         return type.AllInterfaces.Any(i =>
             i.Name == "IEnumerable" &&
             i.ContainingNamespace.ToDisplayString().StartsWith("System.Collections"));
+    }
+
+    private static bool IsDictionary(ITypeSymbol type)
+    {
+        return GetDictionaryInterface(type) != null;
+    }
+
+    private static (ITypeSymbol Key, ITypeSymbol Value)? GetDictionaryKeyValueTypeSymbols(ITypeSymbol type)
+    {
+        var dictionaryInterface = GetDictionaryInterface(type);
+        if (dictionaryInterface is { TypeArguments.Length: 2 } named)
+        {
+            return (named.TypeArguments[0], named.TypeArguments[1]);
+        }
+
+        return null;
+    }
+
+    private static INamedTypeSymbol? GetDictionaryInterface(ITypeSymbol type)
+    {
+        static bool IsDictionaryName(ITypeSymbol candidate) =>
+            (candidate.Name == "IDictionary" || candidate.Name == "IReadOnlyDictionary") &&
+            candidate.ContainingNamespace.ToDisplayString() == "System.Collections.Generic";
+
+        if (type is INamedTypeSymbol self && self.TypeArguments.Length == 2 && IsDictionaryName(self))
+        {
+            return self;
+        }
+
+        return type.AllInterfaces.FirstOrDefault(i => i.TypeArguments.Length == 2 && IsDictionaryName(i));
     }
 
     private static bool IsObjectLike(ITypeSymbol type)
@@ -550,6 +590,34 @@ public class ClonableGenerator : IIncrementalGenerator
 
             cases.Add($"_ => {sourceAccess}");
             return $"{sourceAccess} switch {{ {string.Join(", ", cases)} }}";
+        }
+
+        if (prop.IsDictionary && prop.DictionaryValueTypeSymbol != null)
+        {
+            var valueSymbol = prop.DictionaryValueTypeSymbol;
+            var valueType = prop.DictionaryValueType ?? "object";
+
+            string valueClone;
+            if (valueSymbol.IsValueType || valueSymbol.SpecialType == SpecialType.System_String)
+            {
+                valueClone = "kvp.Value";
+            }
+            else if (IsReachable(valueSymbol, reachable))
+            {
+                valueClone = "kvp.Value?.Clone(ctx)";
+            }
+            else if (HasCloneMethod(valueSymbol))
+            {
+                valueClone = "kvp.Value?.Clone()";
+            }
+            else
+            {
+                valueClone = "ThrowUncloneable<" + valueType + ">(\"Clonable '" + owner.FullyQualifiedName +
+                    "' property '" + prop.Name + "' dictionary value type '" + valueType +
+                    "' cannot be cloned.\")";
+            }
+
+            return $"{sourceAccess}?.ToDictionary(kvp => kvp.Key, kvp => {valueClone})";
         }
 
         if (prop.IsCollection && prop.CollectionElementTypeSymbol != null)
