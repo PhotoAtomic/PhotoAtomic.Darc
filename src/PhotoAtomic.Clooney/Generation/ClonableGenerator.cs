@@ -617,7 +617,7 @@ public class ClonableGenerator : IIncrementalGenerator
                     "' cannot be cloned.\")";
             }
 
-            return $"{sourceAccess}?.ToDictionary(kvp => kvp.Key, kvp => {valueClone})";
+            return $"{sourceAccess}?.ToDictionary(kvp => kvp.Key, kvp => {valueClone})" + (prop.IsNullable ? string.Empty : "!");
         }
 
         if (prop.IsCollection && prop.CollectionElementTypeSymbol != null)
@@ -632,7 +632,7 @@ public class ClonableGenerator : IIncrementalGenerator
                     ? "x?.Clone()"
                     : "ThrowUncloneable<" + elementType + ">(\"Clonable '" + owner.FullyQualifiedName + "' property '" + prop.Name + "' collection element type '" + (prop.CollectionElementType ?? "unknown") + "' cannot be cloned.\")";
 
-            return $"{sourceAccess}?.Select(x => {selector}).ToList()";
+            return $"{sourceAccess}?.Select(x => {selector}).ToList()" + (prop.IsNullable ? string.Empty : "!");
         }
 
         var typeReachable = IsReachable(prop.TypeSymbol, reachable);
