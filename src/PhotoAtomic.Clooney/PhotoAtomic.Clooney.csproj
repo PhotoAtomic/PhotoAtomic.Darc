@@ -1,22 +1,43 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>
-    <Nullable>enable</Nullable>
-    <RootNamespace>PhotoAtomic.Clooney</RootNamespace>
-    <AssemblyName>PhotoAtomic.Clooney</AssemblyName>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>
+		<Nullable>enable</Nullable>
+		<RootNamespace>PhotoAtomic.Clooney</RootNamespace>
+		<AssemblyName>PhotoAtomic.Clooney</AssemblyName>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" PrivateAssets="all" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" PrivateAssets="all" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\PhotoAtomic.IndentedStrings\PhotoAtomic.IndentedStrings.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
-    <ProjectReference Include="..\PhotoAtomic.Clooney.Abstractions\PhotoAtomic.Clooney.Abstractions.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<!-- The generator compiles against IndentedStrings (its Indent interpolated-string handler).
+         PrivateAssets="all" keeps it out of the package dependency graph; the target below makes the
+         DLL flow to every consumer's analyzer load context, so consumers don't reference it by hand. -->
+		<ProjectReference Include="..\PhotoAtomic.IndentedStrings\PhotoAtomic.IndentedStrings.csproj" PrivateAssets="all" />
+		<ProjectReference Include="..\PhotoAtomic.Clooney.Abstractions\PhotoAtomic.Clooney.Abstractions.csproj" />
+	</ItemGroup>
+
+	<!-- A source generator runs inside Roslyn and can only load dependencies the consuming compilation
+       lists as analyzers. GetTargetPathDependsOn lets this project add IndentedStrings.dll to the set a
+       ProjectReference contributes, so any project referencing this generator as an analyzer gets the
+       dependency transitively. IncludeRuntimeDependency="false" keeps it analyzer-only — it never lands
+       in a consumer's runtime/publish output. (When packaged as NuGet instead, the equivalent is
+       GeneratePathProperty + <None Pack="true" PackagePath="analyzers/dotnet/cs"> per the Roslyn cookbook.) -->
+	<PropertyGroup>
+		<GetTargetPathDependsOn>$(GetTargetPathDependsOn);_IncludeIndentedStringsInAnalyzerOutput</GetTargetPathDependsOn>
+	</PropertyGroup>
+
+	<Target Name="_IncludeIndentedStringsInAnalyzerOutput" DependsOnTargets="ResolveReferences">
+		<ItemGroup>
+			<TargetPathWithTargetPlatformMoniker Include="@(ReferencePath)"
+												 Condition="'%(ReferencePath.FileName)' == 'PhotoAtomic.IndentedStrings'"
+												 IncludeRuntimeDependency="false" />
+		</ItemGroup>
+	</Target>
 
 </Project>

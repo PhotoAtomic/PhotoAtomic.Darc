@@ -32,8 +32,7 @@
     <ProjectReference Include="..\PhotoAtomic.Darc\PhotoAtomic.Darc.csproj" />
     <!-- Clooney: referenced twice - once as analyzer (for source generation) and once as assembly (for runtime types like ClonableAttribute) -->
     <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" />
-    <ProjectReference Include="..\PhotoAtomic.IndentedStrings\PhotoAtomic.IndentedStrings.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\PhotoAtomic.Clooney\PhotoAtomic.Clooney.csproj" />   
     <ProjectReference Include="..\PhotoAtomic.Clooney.Abstractions\PhotoAtomic.Clooney.Abstractions.csproj" />
   </ItemGroup>
 
